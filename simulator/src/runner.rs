@@ -38,6 +38,7 @@ impl SimHost {
         memory_limit: Option<u64>,
     ) -> Self {
         let budget = Budget::default();
+        let _ = budget.reset_limits(0, 0);
 
         if let Some(ref _calib) = calibration {
             // Note: In newer versions of soroban_env_host, the Budget interface
