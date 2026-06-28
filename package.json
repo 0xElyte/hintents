@@ -1,4 +1,7 @@
 {
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@stellar/stellar-sdk": "^14.5.0",
     "axios": "^1.13.4",
