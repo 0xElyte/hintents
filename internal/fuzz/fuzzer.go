@@ -126,6 +126,10 @@ func (f *CoverageGuidedFuzzer) Run(ctx context.Context, seedInput *simulator.Fuz
 		return nil, fmt.Errorf("seed input required for fuzzing")
 	}
 
+	if err := validateSimulatorInput(seedInput); err != nil {
+		return nil, err
+	}
+
 	stats := &FuzzingStats{
 		StartTime: time.Now(),
 	}
@@ -141,8 +145,15 @@ func (f *CoverageGuidedFuzzer) Run(ctx context.Context, seedInput *simulator.Fuz
 			break
 		}
 
+		if err := validateSimulatorInput(entry.Input); err != nil {
+			return nil, fmt.Errorf("invalid corpus input: %w", err)
+		}
+
 		// Mutate the selected input
 		mutated := f.mutateInput(entry.Input)
+		if err := validateSimulatorInput(&mutated); err != nil {
+			return nil, fmt.Errorf("invalid mutated input: %w", err)
+		}
 
 		// Run the simulator
 		result, coverage := f.executeInput(ctx, &mutated)
@@ -179,6 +190,20 @@ func (f *CoverageGuidedFuzzer) Run(ctx context.Context, seedInput *simulator.Fuz
 	stats.UniqueInputsCount = len(f.corpus)
 
 	return stats, nil
+}
+
+func validateSimulatorInput(input *simulator.FuzzerInput) error {
+	if input == nil {
+		return fmt.Errorf("fuzzer input required")
+	}
+
+	return (&FuzzerInput{
+		EnvelopeXdr:   input.EnvelopeXdr,
+		LedgerEntries: input.LedgerEntries,
+		Timestamp:     input.Timestamp,
+		Args:          input.Args,
+		Seed:          input.Seed,
+	}).Validate()
 }
 
 // addToCorpus adds an input to the corpus if it improves coverage
