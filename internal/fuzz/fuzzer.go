@@ -198,11 +198,7 @@ func validateSimulatorInput(input *simulator.FuzzerInput) error {
 	}
 
 	return (&FuzzerInput{
-		EnvelopeXdr:   input.EnvelopeXdr,
-		LedgerEntries: input.LedgerEntries,
-		Timestamp:     input.Timestamp,
-		Args:          input.Args,
-		Seed:          input.Seed,
+		EnvelopeXdr: input.EnvelopeXdr,
 	}).Validate()
 }
 
