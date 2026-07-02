@@ -235,6 +235,15 @@ func TestExecuteInput(t *testing.T) {
 	assert.NotNil(t, coverage)
 }
 
+func TestRunRejectsEmptyEnvelopeXdr(t *testing.T) {
+	runner := simulator.NewDefaultMockRunner()
+	fuzzer := NewCoverageGuidedFuzzer(runner, FuzzerConfig{})
+
+	_, err := fuzzer.Run(context.Background(), &simulator.FuzzerInput{})
+	require.Error(t, err)
+	assert.EqualError(t, err, "envelope XDR required")
+}
+
 func TestExecuteInputWithCoverage(t *testing.T) {
 	runner := simulator.NewMockRunner(func(ctx context.Context, req *simulator.SimulationRequest) (*simulator.SimulationResponse, error) {
 		assert.True(t, req.EnableCoverage)

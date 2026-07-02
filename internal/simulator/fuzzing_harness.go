@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"strings"
 )
 
 // FuzzerInput represents a single fuzz test input
@@ -17,6 +18,19 @@ type FuzzerInput struct {
 	Timestamp     int64
 	Args          []string
 	Seed          uint64
+}
+
+// Validate checks that the input has the minimum structure required by the simulator.
+func (input *FuzzerInput) Validate() error {
+	if input == nil {
+		return fmt.Errorf("fuzzer input required")
+	}
+
+	if strings.TrimSpace(input.EnvelopeXdr) == "" {
+		return fmt.Errorf("envelope XDR required")
+	}
+
+	return nil
 }
 
 // FuzzingConfig contains configuration for fuzzing operations

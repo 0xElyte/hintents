@@ -5,31 +5,8 @@ package fuzz
 
 import (
 	"fmt"
-	"strings"
 	"time"
 )
-
-// FuzzerInput represents a single fuzzing input with validation helpers.
-type FuzzerInput struct {
-	EnvelopeXdr   string
-	LedgerEntries map[string]string
-	Timestamp     int64
-	Args          []string
-	Seed          uint64
-}
-
-// Validate checks that the input has the minimum structure required by the fuzzer.
-func (input *FuzzerInput) Validate() error {
-	if input == nil {
-		return fmt.Errorf("fuzzer input required")
-	}
-
-	if strings.TrimSpace(input.EnvelopeXdr) == "" {
-		return fmt.Errorf("envelope XDR required")
-	}
-
-	return nil
-}
 
 // FuzzingStats represents statistics from a fuzzing run
 type FuzzingStats struct {

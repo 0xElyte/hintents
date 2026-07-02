@@ -195,9 +195,7 @@ func validateSimulatorInput(input *simulator.FuzzerInput) error {
 		return fmt.Errorf("fuzzer input required")
 	}
 
-	return (&FuzzerInput{
-		EnvelopeXdr: input.EnvelopeXdr,
-	}).Validate()
+	return input.Validate()
 }
 
 // addToCorpus adds an input to the corpus if it improves coverage
