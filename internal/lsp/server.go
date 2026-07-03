@@ -298,17 +298,37 @@ func (s *Server) getDocument(uri protocol.DocumentURI) (string, bool) {
 	return text, ok
 }
 
+// lineAtPosition returns the text of the line at the given LSP position without
+// splitting the entire document. It scans forward using strings.IndexByte to
+// find newline boundaries, which avoids allocating a slice of all lines and
+// copying every sub-string — important for large documents where
+// strings.Split("\n") would produce O(n) heap allocations on every hover.
 func lineAtPosition(text string, position protocol.Position) string {
 	if text == "" {
 		return ""
 	}
 
-	lines := strings.Split(text, "\n")
 	lineIndex := int(position.Line)
-	if lineIndex < 0 || lineIndex >= len(lines) {
+	if lineIndex < 0 {
 		return ""
 	}
-	return lines[lineIndex]
+
+	start := 0
+	for i := 0; i < lineIndex; i++ {
+		idx := strings.IndexByte(text[start:], '\n')
+		if idx < 0 {
+			// Requested line is beyond the last line in the document.
+			return ""
+		}
+		start += idx + 1
+	}
+
+	// start now points at the beginning of the target line.
+	rest := text[start:]
+	if end := strings.IndexByte(rest, '\n'); end >= 0 {
+		return rest[:end]
+	}
+	return rest
 }
 
 func hostFunctionAtPosition(line string, position protocol.Position) (string, uint32, uint32) {
