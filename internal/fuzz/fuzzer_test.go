@@ -6,6 +6,8 @@ package fuzz
 import (
 	"context"
 	"encoding/hex"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -244,6 +246,7 @@ func TestExecuteInputWithCoverage(t *testing.T) {
 		}, nil
 	})
 	fuzzer := NewCoverageGuidedFuzzer(runner, FuzzerConfig{EnableCoverage: true})
+	defer fuzzer.cleanupCoverageTemp()
 
 	input := &simulator.FuzzerInput{EnvelopeXdr: "test_envelope"}
 	result, coverage := fuzzer.executeInput(context.Background(), input)
@@ -253,6 +256,61 @@ func TestExecuteInputWithCoverage(t *testing.T) {
 	assert.NotNil(t, coverage)
 	assert.Equal(t, uint32(2), coverage.totalCoverage)
 	assert.Len(t, coverage.coveredLines, 2)
+}
+
+// TestCoverageTempFileReuse verifies the fuzzer creates a single LCOV temp file
+// and reuses it across every iteration (instead of one per iteration), then
+// removes it when the campaign ends.
+func TestCoverageTempFileReuse(t *testing.T) {
+	var (
+		mu        sync.Mutex
+		seenPaths []string
+	)
+
+	runner := simulator.NewMockRunner(func(ctx context.Context, req *simulator.SimulationRequest) (*simulator.SimulationResponse, error) {
+		require.True(t, req.EnableCoverage)
+		require.NotNil(t, req.CoverageLCOVPath)
+
+		// The reused temp file must exist for the duration of the run.
+		_, statErr := os.Stat(*req.CoverageLCOVPath)
+		assert.NoError(t, statErr, "coverage temp file should exist during execution")
+
+		mu.Lock()
+		seenPaths = append(seenPaths, *req.CoverageLCOVPath)
+		mu.Unlock()
+
+		return &simulator.SimulationResponse{
+			Status:     "success",
+			LCOVReport: "TN:\nSF:/tmp/contract.wasm\nDA:10,1\nDA:20,1\nend_of_record\n",
+		}, nil
+	})
+
+	const iterations = 8
+	fuzzer := NewCoverageGuidedFuzzer(runner, FuzzerConfig{
+		MaxIterations:  iterations,
+		EnableCoverage: true,
+	})
+
+	seed := &simulator.FuzzerInput{
+		EnvelopeXdr:   hex.EncodeToString([]byte("seed input")),
+		LedgerEntries: map[string]string{},
+	}
+
+	_, err := fuzzer.Run(context.Background(), seed)
+	require.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	require.Greater(t, len(seenPaths), 1, "expected multiple simulator executions")
+	for _, p := range seenPaths {
+		assert.Equal(t, seenPaths[0], p, "every iteration must reuse the same temp file")
+	}
+
+	// After the campaign ends the reusable temp file must be cleaned up.
+	_, statErr := os.Stat(seenPaths[0])
+	assert.True(t, os.IsNotExist(statErr), "coverage temp file should be removed after Run")
+	assert.Empty(t, fuzzer.coverageTmpPath, "temp path should be reset after cleanup")
 }
 
 // TestContextCancellation tests behavior when context is cancelled
