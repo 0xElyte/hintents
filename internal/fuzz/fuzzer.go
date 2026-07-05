@@ -4,6 +4,8 @@
 package fuzz
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -583,26 +585,35 @@ func (f *CoverageGuidedFuzzer) parseLCOVReport(report string) *CoverageMap {
 		timestamp:    time.Now(),
 	}
 
-	for _, line := range strings.Split(report, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "DA:") {
+	scanner := bufio.NewScanner(strings.NewReader(report))
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		// Trim whitespace
+		line = bytes.TrimSpace(line)
+
+		if !bytes.HasPrefix(line, []byte("DA:")) {
 			continue
 		}
 
-		parts := strings.SplitN(line[3:], ",", 2)
-		if len(parts) != 2 {
+		// Get part after DA:
+		rest := line[3:]
+		commaIdx := bytes.IndexByte(rest, ',')
+		if commaIdx == -1 {
 			continue
 		}
 
-		lineNum := strings.TrimSpace(parts[0])
-		countStr := strings.TrimSpace(parts[1])
-		count, err := strconv.Atoi(countStr)
+		// Extract line num part (trim whitespace)
+		lineNumPart := bytes.TrimSpace(rest[:commaIdx])
+		// Extract count part (trim whitespace)
+		countPart := bytes.TrimSpace(rest[commaIdx+1:])
+
+		count, err := strconv.Atoi(string(countPart))
 		if err != nil {
 			continue
 		}
 
 		if count > 0 {
-			coverage.coveredLines[lineNum] = true
+			coverage.coveredLines[string(lineNumPart)] = true
 			coverage.totalCoverage++
 		}
 	}
