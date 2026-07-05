@@ -36,6 +36,37 @@ type CorpusEntry struct {
 	Timestamp   time.Time
 }
 
+// DeepCopy returns a fully independent copy of the CorpusEntry.
+// Both the entry metadata and the underlying FuzzerInput are copied so that
+// callers cannot mutate internal fuzzer state through the returned value.
+func (ce *CorpusEntry) DeepCopy() *CorpusEntry {
+	cp := &CorpusEntry{
+		ResultIdx:   ce.ResultIdx,
+		NewCoverage: ce.NewCoverage,
+		Timestamp:   ce.Timestamp,
+	}
+
+	if ce.Input != nil {
+		cp.Input = ce.Input.DeepCopy()
+	}
+
+	if ce.Coverage != nil {
+		covCopy := &CoverageMap{
+			totalCoverage: ce.Coverage.totalCoverage,
+			timestamp:     ce.Coverage.timestamp,
+		}
+		if ce.Coverage.coveredLines != nil {
+			covCopy.coveredLines = make(map[string]bool, len(ce.Coverage.coveredLines))
+			for k, v := range ce.Coverage.coveredLines {
+				covCopy.coveredLines[k] = v
+			}
+		}
+		cp.Coverage = covCopy
+	}
+
+	return cp
+}
+
 // CoverageGuidedFuzzer implements a coverage-guided fuzzer for Stellar contracts
 type CoverageGuidedFuzzer struct {
 	runner           simulator.RunnerInterface
@@ -562,23 +593,29 @@ func (f *CoverageGuidedFuzzer) logProgress(iteration uint64) {
 	)
 }
 
-// GetCrashingInputs returns all inputs that caused crashes
+// GetCrashingInputs returns deep copies of all inputs that caused crashes.
+// Callers may freely mutate the returned values without affecting internal state.
 func (f *CoverageGuidedFuzzer) GetCrashingInputs() []*simulator.FuzzerInput {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
 	result := make([]*simulator.FuzzerInput, len(f.crashingInputs))
-	copy(result, f.crashingInputs)
+	for i, input := range f.crashingInputs {
+		result[i] = input.DeepCopy()
+	}
 	return result
 }
 
-// GetCorpus returns a copy of the current corpus
+// GetCorpus returns deep copies of the current corpus entries.
+// Callers may freely mutate the returned values without affecting internal state.
 func (f *CoverageGuidedFuzzer) GetCorpus() []*CorpusEntry {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
 	result := make([]*CorpusEntry, len(f.corpus))
-	copy(result, f.corpus)
+	for i, entry := range f.corpus {
+		result[i] = entry.DeepCopy()
+	}
 	return result
 }
 
