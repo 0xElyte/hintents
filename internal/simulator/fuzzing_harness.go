@@ -31,6 +31,29 @@ func (input *FuzzerInput) Validate() error {
 	}
 
 	return nil
+// DeepCopy returns a fully independent copy of the FuzzerInput.
+// The returned value shares no underlying memory with the original, so
+// mutations to LedgerEntries or Args on either side are isolated.
+func (fi *FuzzerInput) DeepCopy() *FuzzerInput {
+	cp := &FuzzerInput{
+		EnvelopeXdr: fi.EnvelopeXdr,
+		Timestamp:   fi.Timestamp,
+		Seed:        fi.Seed,
+	}
+
+	if fi.LedgerEntries != nil {
+		cp.LedgerEntries = make(map[string]string, len(fi.LedgerEntries))
+		for k, v := range fi.LedgerEntries {
+			cp.LedgerEntries[k] = v
+		}
+	}
+
+	if fi.Args != nil {
+		cp.Args = make([]string, len(fi.Args))
+		copy(cp.Args, fi.Args)
+	}
+
+	return cp
 }
 
 // FuzzingConfig contains configuration for fuzzing operations
