@@ -31,6 +31,8 @@ func (input *FuzzerInput) Validate() error {
 	}
 
 	return nil
+}
+
 // DeepCopy returns a fully independent copy of the FuzzerInput.
 // The returned value shares no underlying memory with the original, so
 // mutations to LedgerEntries or Args on either side are isolated.
